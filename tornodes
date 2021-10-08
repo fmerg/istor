@@ -10,23 +10,23 @@ table \"exit_nodes\" with one column \"ip\". Its default name is \"tornodes\"
 with default user \"postgres\".
 
 Actions
-  create	Create local database and populate with the IPs at the
-  		currently advertised list of exit nodes
-  update	Synchronize the local database with the currently
-  		advertised list of exit nodes
-  clear		Delete database entries
-  drop		Drop the database
+  create	Create local database and populate with the IPs from the
+  		list of currently advertised Tor exit nodes
+  update	Synchronize the local database with the list of currently
+  		advertised Tor exit nodes
+  clear		Delete local database entries
+  drop		Drop local database
   open          Access local database via psql in terminal mode
   number	Print number of exit nodes
   all		Print list of exit nodes
   diff          Print differences between local database and list of
-                currently advertized exit nodes
+                currently advertized exit Tor nodes
 
 Options
   --help, -h	Display this message and exit
-  --url         URL of advertised exit nodes to use. Defaults to
+  --url         URL of advertised Tor exit nodes to use. Defaults to
                 https://check.torproject.org/torbulkexitlist
-  --dbname	Name of local database. (default: tornodes)
+  --dbname	Name of local database (default: tornodes)
   --dbuser	Database user (default: postgres)
   --no-populate	Do not populate database upon creation (default: false)
   --no-torify	Do not torify online connections. (default: false)
