@@ -142,7 +142,6 @@ do
 			usage
 			exit 0
 			;;
-
 		*)
 			echo "[-] Invalid argument: $arg"
 			usage
