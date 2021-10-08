@@ -29,7 +29,7 @@ Options
   --dbname	Name of local database (default: tornodes)
   --dbuser	Database user (default: postgres)
   --no-populate	Do not populate database upon creation (default: false)
-  --no-torify	Do not torify online connections. (default: false)
+  --torify	Torify connection to exit nodes URL (default: false)
   --remote	When combined with \"number\" or \"all\", derive
   		info from the current public list of exit nodes
 		instead of quering the database
@@ -54,7 +54,7 @@ TBNAME=exit_nodes
 DBNAME=tornodes
 DBUSER=postgres
 POPULATE=true
-TORIFY="torify"
+TORIFY=""
 LOCAL=true
 
 CREATE="CREATE"
@@ -122,16 +122,8 @@ do
 			POPULATE=false
 			shift
 			;;
-		--no-torify)
-			echo -n "Do you really want to run without torify (yes/no)? "
-			read yn
-			if [ "$yn" != "${yn#[Yy]}" ] ; then
-				echo "Sorry :), this is not allowed by the security policy of this server."
-				exit 1
-				TORIFY=""	# Never reached
-			else
-				:
-			fi
+		--torify)
+			TORIFY="torify"
 			shift
 			;;
 		--remote)
