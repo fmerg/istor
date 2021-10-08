@@ -1,0 +1,234 @@
+#!/bin/bash
+
+usage_string="usage: $(basename "$0") <ACTION> [OPTIONS]
+
+Utility for locally maintaining a postgres database of Tor exit nodes
+on Debian based systems via psql.
+
+Notes on database: The database is fairly minimal. It consists of one
+table \"exit_nodes\" with one column \"ip\". Its default name is \"tornodes\"
+with default user \"postgres\".
+
+Actions
+  create	Create local database and populate with the IPs at the
+  		currently advertised list of exit nodes
+  update	Synchronize the local database with the currently
+  		advertised list of exit nodes
+  clear		Delete database entries
+  drop		Drop the database
+  open          Access local database via psql in terminal mode
+  number	Print number of exit nodes
+  all		Print list of exit nodes
+  diff          Print differences between local database and list of
+                currently advertized exit nodes
+
+Options
+  --help, -h	Display this message and exit
+  --url         URL of advertised exit nodes to use. Defaults to
+                https://check.torproject.org/torbulkexitlist
+  --dbname	Name of local database. (default: tornodes)
+  --dbuser	Database user (default: postgres)
+  --no-populate	Do not populate database upon creation (default: false)
+  --no-torify	Do not torify online connections. (default: false)
+  --remote	When combined with \"number\" or \"all\", derive
+  		info from the current public list of exit nodes
+		instead of quering the database
+
+Examples
+  $ $(basename "$0") create
+  $ $(basename "$0") diff
+  $ $(basename "$0") update
+"
+
+usage() { echo -n "$usage_string" 1>&2; }
+
+set -e
+set -u
+set -o pipefail
+
+
+TOR_EXIT_NODES_URL='https://check.torproject.org/torbulkexitlist'
+CSVFILE=/tmp/tor-exit-nodes.csv
+TBNAME=exit_nodes
+
+DBNAME=tornodes
+DBUSER=postgres
+POPULATE=true
+TORIFY="torify"
+LOCAL=true
+
+CREATE="CREATE"
+UPDATE="UPDATE"
+CLEAR="CLEAR"
+DROP="DROP"
+OPEN="OPEN"
+QUERY_NR="QUERY_NR"
+QUERY_ALL="QUERY_ALL"
+QUERY_DIFF="QUERY_DIFF"
+
+
+actions=()
+while [[ $# -gt 0 ]]
+do
+	arg="$1"
+	case $arg in
+		create|update|clear|drop|number|all|diff|open)
+			case $arg in
+				create)
+					actions+=($CREATE)
+					;;
+				update)
+					actions+=($UPDATE)
+					;;
+				clear)
+					actions+=($CLEAR)
+					;;
+				drop)
+					actions+=($DROP)
+					;;
+				open)
+					actions+=($OPEN)
+					;;
+				number)
+					actions+=($QUERY_NR)
+					;;
+				all)
+					actions+=($QUERY_ALL)
+					;;
+				diff)
+					actions+=($QUERY_DIFF)
+					;;
+				*)
+					:
+			esac
+			shift
+			;;
+		--url)
+			TOR_EXIT_NODES_URL="$2"
+			shift
+			shift
+			;;
+		--dbname)
+			DBNAME="$2"
+			shift
+			shift
+			;;
+		--dbuser)
+			DBUSER="$2"
+			shift
+			shift
+			;;
+		--no-populate)
+			POPULATE=false
+			shift
+			;;
+		--no-torify)
+			echo -n "Do you really want to run without torify (yes/no)? "
+			read yn
+			if [ "$yn" != "${yn#[Yy]}" ] ; then
+				echo "Sorry :), this is not allowed by the security policy of this server."
+				exit 1
+				TORIFY=""	# Never reached
+			else
+				:
+			fi
+			shift
+			;;
+		--remote)
+			LOCAL=false
+			shift
+			;;
+		-h|--help)
+			usage
+			exit 0
+			;;
+
+		*)
+			echo "[-] Invalid argument: $arg"
+			usage
+			exit 1
+			;;
+	esac
+done
+
+
+fetch_tor_exit_nodes() { 
+	$TORIFY curl -sb -I "$TOR_EXIT_NODES_URL" | sort | uniq
+}
+
+if [[ ${#actions[@]} -gt 1 ]]; then
+	echo "[-] Cannot specify more than one action"
+	usage
+	exit 1
+elif [[ ${#actions[@]} -eq 0 ]]; then
+	echo "[-] No action has been specified"
+	usage
+	exit 1
+else
+	ACTION=${actions[0]}
+	case $ACTION in
+		$CREATE)
+			sudo -u $DBUSER createdb "$DBNAME"
+			sudo -u $DBUSER psql -c "DROP TABLE IF EXISTS $TBNAME" $DBNAME >/dev/null 2>&1
+			sudo -u $DBUSER psql -c "CREATE TABLE $TBNAME (ip varchar(45));" $DBNAME
+			[[ ${POPULATE} = true ]] && { 
+                                echo "ip" > $CSVFILE
+			        fetch_tor_exit_nodes >> $CSVFILE
+				sudo -u $DBUSER psql -c "COPY $TBNAME FROM '$CSVFILE' CSV HEADER;" $DBNAME
+				rm $CSVFILE
+			}
+			;;
+		$UPDATE)
+                        echo "ip" > $CSVFILE
+			fetch_tor_exit_nodes >> $CSVFILE
+			sudo -u $DBUSER psql \
+				-c "CREATE TABLE TEMPORARY (ip varchar(45));" \
+				-c "COPY TEMPORARY FROM '$CSVFILE' CSV HEADER;" \
+				-c "DROP TABLE IF EXISTS "$TBNAME";" \
+				-c "ALTER TABLE TEMPORARY RENAME TO "$TBNAME";" \
+				$DBNAME
+			rm $CSVFILE
+			;;
+		$CLEAR)
+			sudo -u $DBUSER psql -c "DELETE FROM $TBNAME;" $DBNAME
+			;;
+		$DROP)
+			sudo -u $DBUSER dropdb "$DBNAME" --if-exists
+			;;
+		$OPEN)
+			sudo -u $DBUSER psql "$DBNAME"
+			;;
+		$QUERY_NR)
+			[[ ${LOCAL} = true ]] && {
+				sudo -u $DBUSER psql -c "SELECT COUNT(*) FROM $TBNAME;" $DBNAME \
+					| awk 'FNR == 3 {print $1}'
+			} || {
+				fetch_tor_exit_nodes | wc -l
+			}
+			;;
+		$QUERY_ALL)
+			[[ ${LOCAL} = true ]] && {
+				sudo -u $DBUSER psql -c "SELECT * FROM $TBNAME;" $DBNAME \
+					| awk 'NR>2' | awk '{$1=$1};1' | head -n -2 | sort --numeric-sort
+			} || {
+				fetch_tor_exit_nodes | sort --numeric-sort
+			}
+			;;
+		$QUERY_DIFF)
+                        SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+                        comm=$SCRIPT_DIR/$(basename "$0")
+                        diff <($comm all | sort) <($comm all --remote | sort) \
+                                --suppress-common-lines \
+                                --speed-large-files \
+                                --side-by-side \
+                                --color
+			;;
+		"")
+			echo "[-] No proper action has been specified"
+			usage
+			exit 1
+			;;
+	esac
+fi
+
+
