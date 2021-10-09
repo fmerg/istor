@@ -1,28 +1,74 @@
-istor
-=====
+# istor
 
-`istor` is a bash utility for checking if an IP (IPv4) belongs to a Tor exit
-node on Debian based systems. Comparison is made for speed against the local
-postgres database of exit nodes established with the `tornodes` script of the
-inside the present repository.
+[`istor`](./istor) is a bash utility for checking if an IP (v4) belongs to
+a Tor exit node on Debian based systems. Comparison is made for speed against
+the local (postgres) database of exit nodes established with the 
+[`tornodes`](./tornodes) script inside the present repository.
+Run with `--help` for details.
 
-For details:
+## Basic setup and usage
 
-  ./istor --help
-  ./tornodes --help
+Install `curl`, `postgres`, `postgresql-contrib`. Create and populate a local 
+database of exit nodes with:
 
-The default URL of currently advertised Tor exit nodes in use is
+```commandline
+./tornodes create
+```
 
-https://check.torproject.org/torbulkexitlist
+You can now check if an IP belongs to an exit node as follows:
 
-Requirements
-------------
+``` commandline
+$ ./istor 176.10.99.200
+true
+$ echo $?
+0
+```
 
-curl, postgres, postgresql-contrib, torsocks [optional]
+Run wih `--help` for more options. Make sure to place the scripts in
+a directory of executable programs if you want to run them as commands without
+need of relative paths.
 
-istor
------
 
+### Example use case
+
+You can use `istor` to monitor your NGINX proxy for Tor connections as follows:
+
+```bash
+tail -fn0 /var/log/nginx/access.log | while read line; do
+    ip=$(echo $line | awk -F' ' '{print $1}')
+    istor $ip
+    if [[ $? -eq 0 ]]; then 
+        #
+        # Do something with requests coming from Tor exit nodes
+        #
+    fi
+done
+```
+
+
+## Periodic update
+
+`istor` is fast because it queries a local database instead of everytime
+fetching the list of currently advertised exit nodes. Consequently, 
+in order to get correct results, you need to update your database on a 
+regular basis with
+
+```
+$ ./tornodes update
+```
+
+For example, assuming `tornodes` has been placed in a directory of executable 
+programs, you can create a cronjob for updating the database every minute (it
+costs nothing):
+
+```
+* * * * * tornodes update
+```
+
+## Advanced usage
+
+### [`istor`](./istor)
+```
 usage: istor <IP> [OPTIONS]
 
 Checks if the provided IP belongs to a Tor exit node. It exits with
@@ -45,10 +91,10 @@ Options
 Examples
   $ istor 104.244.76.13
   $ istor 104.244.76.13 --dbname tornodes --dbuser postgres
+```
 
-tornodes
---------
-
+### [`tornodes`](./tornodes)
+```
 usage: tornodes <ACTION> [OPTIONS]
 
 Utility for locally maintaining a postgres database of Tor exit nodes
@@ -87,3 +133,4 @@ Examples
   $ tornodes create
   $ tornodes diff
   $ tornodes update
+```
