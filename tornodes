@@ -144,7 +144,7 @@ done
 
 
 fetch_tor_exit_nodes() { 
-	$TORIFY curl -sb -I "$TOR_EXIT_NODES_URL" | sort | uniq
+	$TORIFY curl -sb -I "$TOR_EXIT_NODES_URL" | sort --numeric-sort | uniq
 }
 
 if [[ ${#actions[@]} -gt 1 ]]; then

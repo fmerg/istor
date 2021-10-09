@@ -1,9 +1,9 @@
 istor
 =====
 
-`istor` is a bash utility for checking if an IP belongs to a Tor exit node
-on Debian based systems. Comparison is made for speed against the local
-postgres database of exit nodes established the `tornodes` script of the
+`istor` is a bash utility for checking if an IP (IPv4) belongs to a Tor exit
+node on Debian based systems. Comparison is made for speed against the local
+postgres database of exit nodes established with the `tornodes` script of the
 inside the present repository.
 
 For details:
@@ -33,9 +33,9 @@ Checks if the provided IP belongs to a Tor exit node. It exits with
         2 in case of wrong usage
 
 Comparison is made for speed against the local database of Tor exit nodes 
-established with the "tornodes" command. Keep this database synced with
+established with the 'tornodes' command. Keep this database synced with
 list of advertised Tor exit nodes in order to get correct results. 
-See "tornodes --help" for details.
+See 'tornodes --help' for details.
 
 Options
   --help, -h  Display this message and exit

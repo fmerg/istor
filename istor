@@ -2,7 +2,7 @@
 
 usage_string="usage: $(basename "$0") <IP> [OPTIONS]
 
-Checks if the provided IP belongs to a Tor exit node. It exits with
+Checks if the provided IP (IPv4) belongs to a Tor exit node. It exits with
 
 	0 if it belongs to an exit node
 	1 if it does not
@@ -10,9 +10,9 @@ Checks if the provided IP belongs to a Tor exit node. It exits with
         2 in case of wrong usage
 
 Comparison is made for speed against the local database of Tor exit nodes 
-established with the \"tornodes\" command. Keep this database synced with
+established with the 'tornodes' command. Keep this database synced with
 list of advertised Tor exit nodes in order to get correct results. 
-See \"tornodes --help\" for details.
+See 'tornodes --help' for details.
 
 Options
   --help, -h	Display this message and exit
