@@ -12,6 +12,8 @@ with default user \"postgres\".
 Actions
   create	Create local database and populate with the IPs from the
   		list of currently advertised Tor exit nodes
+  exists        Check if a database with the provided name (see options)
+                exists. Exit with 0 if yes, 1 otherwise.
   update	Synchronize the local database with the list of currently
   		advertised Tor exit nodes
   clear		Delete local database entries
@@ -58,6 +60,7 @@ TORIFY=
 LOCAL=true
 
 CREATE="CREATE"
+EXISTS="EXISTS"
 UPDATE="UPDATE"
 CLEAR="CLEAR"
 DROP="DROP"
@@ -71,16 +74,23 @@ fetch_tor_exit_nodes() {
 	$TORIFY curl -sb -I "$TOR_EXIT_NODES_URL" | sort --numeric-sort | uniq
 }
 
+check_exists() {
+    sudo -u $DBUSER psql --list | grep -q "$1"
+}
+
 
 actions=()
 while [[ $# -gt 0 ]]
 do
 	arg="$1"
 	case $arg in
-		create|update|clear|drop|number|all|diff|open)
+		create|exists|update|clear|drop|number|all|diff|open)
 			case $arg in
 				create)
 					actions+=($CREATE)
+					;;
+				exists)
+					actions+=($EXISTS)
 					;;
 				update)
 					actions+=($UPDATE)
@@ -169,6 +179,13 @@ case $ACTION in
 			rm $CSVFILE
 		}
 		;;
+	$EXISTS)
+    if check_exists $DBNAME ; then
+        echo true && exit 0
+    else
+        echo false && exit 1
+    fi
+    ;;
 	$UPDATE)
                       echo "ip" > $CSVFILE
 		fetch_tor_exit_nodes >> $CSVFILE
