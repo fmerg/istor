@@ -112,6 +112,15 @@ update_db() {
   rm $CSVFILE
 }
 
+query_nr() {
+  [[ ${LOCAL} = true ]] && {
+  	sudo -u $DBUSER psql -c "SELECT COUNT(*) FROM $TBNAME;" $DBNAME \
+  		| awk 'FNR == 3 {print $1}'
+  } || {
+  	fetch_tor_exit_nodes | wc -l
+  }
+}
+
 
 actions=()
 while [[ $# -gt 0 ]]
@@ -236,12 +245,7 @@ case $ACTION in
 		sudo -u $DBUSER psql "$DBNAME"
 		;;
 	$NUMBER)
-		[[ ${LOCAL} = true ]] && {
-			sudo -u $DBUSER psql -c "SELECT COUNT(*) FROM $TBNAME;" $DBNAME \
-				| awk 'FNR == 3 {print $1}'
-		} || {
-			fetch_tor_exit_nodes | wc -l
-		}
+    query_nr
 		;;
 	$ALL)
 		[[ ${LOCAL} = true ]] && {
