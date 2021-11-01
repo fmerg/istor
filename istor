@@ -4,10 +4,10 @@ usage_string="usage: $(basename "$0") <IP> [OPTIONS]
 
 Checks if the provided IP (IPv4) belongs to a Tor exit node. It exits with
 
-	0 if it belongs to an exit node
-	1 if it does not
-	3 in case of database error (see below)
-        2 in case of wrong usage
+    0 if it belongs to an exit node
+    1 if it does not
+    2 in case of wrong usage
+    3 in case of database error (see below)
 
 Comparison is made for speed against the local database of Tor exit nodes 
 established with the 'tornodes' command. Keep this database synced with
@@ -15,9 +15,9 @@ list of advertised Tor exit nodes in order to get correct results.
 See 'tornodes --help' for details.
 
 Options
-  --help, -h	Display this message and exit
-  --dbamne	the local database of Tor exit nodes (default: \"tornodes\")
-  --dbuser	user name of the above database (default: \"postgres\")
+  --help, -h  Display this message and exit
+  --dbamne    the local database of Tor exit nodes (default: \"tornodes\")
+  --dbuser    user name of the above database (default: \"postgres\")
 
 Examples
   $ $(basename "$0") 104.244.76.13
@@ -34,60 +34,60 @@ set -o pipefail
 DBNAME=tornodes
 DBUSER=postgres
 TBNAME=exit_nodes
-IP=""
+IP=
 
 positional=()
 while [[ $# -gt 0 ]]
 do
-	arg="$1"
-	case $arg in
-		--dbname)
-			DBNAME="$2"
-			shift
-			shift
-			;;
-		--dbuser)
-			DBUSER="$2"
-			shift
-			shift
-			;;
-		-h|--help)
-			usage
-			exit 0
-			;;
-		*)
-			IP="$1"
-                        positional+=($IP)
-			shift
-			;;
-	esac
+    arg="$1"
+    case $arg in
+        --dbname)
+            DBNAME="$2"
+            shift
+            shift
+            ;;
+        --dbuser)
+            DBUSER="$2"
+            shift
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            IP="$1"
+            positional+=($IP)
+            shift
+            ;;
+    esac
 done
 
 
 [[ ${#positional[@]} -eq 1 ]] && {
 
-	resp=$(sudo -u $DBUSER psql -c "SELECT EXISTS (SELECT * FROM $TBNAME WHERE ip='"$IP"');" $DBNAME)
-	
-	[[ $? -eq 0 ]] && {
-	
-		[[ $(echo "$resp" | awk 'FNR == 3 {print $1}') == "f" ]] && { 
-			echo false
-			exit 1
-		} || {
-			echo true
-			exit 0
-		}
+    resp=$(sudo -u $DBUSER psql -c "SELECT EXISTS (SELECT * FROM $TBNAME WHERE ip='"$IP"');" $DBNAME)
+    
+    [[ $? -eq 0 ]] && {
+    
+        [[ $(echo "$resp" | awk 'FNR == 3 {print $1}') == "f" ]] && { 
+            echo false
+            exit 1
         } || {
-        	echo
-        	echo "Something was wrong with the database query ^^"
-        	exit 3
+            echo true
+            exit 0
         }
+    } || {
+        echo
+        echo "Something was wrong with the database query ^^"
+        exit 3
+    }
 } || {
-        [[ ${#positional[@]} -eq 0 ]] && { 
-	        echo "[-] No IP provided"
-        } || {
-                echo "[-] Cannot provide more than one IPs"
-        }
-        usage
-        exit 2
+    [[ ${#positional[@]} -eq 0 ]] && { 
+        echo "[-] No IP provided"
+    } || {
+        echo "[-] Cannot provide more than one IPs"
+    }
+    usage
+    exit 2
 }

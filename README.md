@@ -71,12 +71,12 @@ costs nothing):
 ```
 usage: istor <IP> [OPTIONS]
 
-Checks if the provided IP belongs to a Tor exit node. It exits with
+Checks if the provided IP (IPv4) belongs to a Tor exit node. It exits with
 
-        0 if it belongs to an exit node
-        1 if it does not
-        3 in case of database error (see below)
-        2 in case of wrong usage
+    0 if it belongs to an exit node
+    1 if it does not
+    2 in case of wrong usage
+    3 in case of database error (see below)
 
 Comparison is made for speed against the local database of Tor exit nodes 
 established with the 'tornodes' command. Keep this database synced with
@@ -85,8 +85,8 @@ See 'tornodes --help' for details.
 
 Options
   --help, -h  Display this message and exit
-  --dbamne  the local database of Tor exit nodes (default: "tornodes")
-  --dbuser  user name of the above database (default: "postgres")
+  --dbamne    the local database of Tor exit nodes (default: "tornodes")
+  --dbuser    user name of the above database (default: "postgres")
 
 Examples
   $ istor 104.244.76.13
@@ -107,6 +107,8 @@ with default user "postgres".
 Actions
   create        Create local database and populate with the IPs from the
                 list of currently advertised Tor exit nodes
+  exists        Check if a database with the provided name (see options)
+                exists. Exit with 0 if yes, 1 otherwise.
   update        Synchronize the local database with the list of currently
                 advertised Tor exit nodes
   clear         Delete local database entries
@@ -123,11 +125,13 @@ Options
                 https://check.torproject.org/torbulkexitlist
   --dbname      Name of local database (default: tornodes)
   --dbuser      Database user (default: postgres)
+  --force       If with create, overwrite existing database with the same
+                name (default: false)
   --no-populate Do not populate database upon creation (default: false)
   --torify      Torify connection to exit nodes URL (default: false)
-  --remote      When combined with "number" or "all", derive
-                info from the current public list of exit nodes
-                instead of quering the database
+  --remote      When combined with "number" or "all", derive info from the
+                list of currently advertised Tor exit nodes instead of quering
+                the local database.
 
 Examples
   $ tornodes create

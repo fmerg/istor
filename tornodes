@@ -10,33 +10,33 @@ table \"exit_nodes\" with one column \"ip\". Its default name is \"tornodes\"
 with default user \"postgres\".
 
 Actions
-  create	Create local database and populate with the IPs from the
-  		list of currently advertised Tor exit nodes
+  create        Create local database and populate with the IPs from the
+                list of currently advertised Tor exit nodes
   exists        Check if a database with the provided name (see options)
                 exists. Exit with 0 if yes, 1 otherwise.
-  update	Synchronize the local database with the list of currently
-  		advertised Tor exit nodes
-  clear		Delete local database entries
-  drop		Drop local database
+  update        Synchronize the local database with the list of currently
+                advertised Tor exit nodes
+  clear         Delete local database entries
+  drop          Drop local database
   open          Access local database via psql in terminal mode
-  number	Print number of exit nodes
-  all		Print list of exit nodes
+  number        Print number of exit nodes
+  all           Print list of exit nodes
   diff          Print differences between local database and list of
                 currently advertized exit Tor nodes
 
 Options
-  --help, -h	Display this message and exit
+  --help, -h    Display this message and exit
   --url         URL of advertised Tor exit nodes to use. Defaults to
                 https://check.torproject.org/torbulkexitlist
-  --dbname	Name of local database (default: tornodes)
-  --dbuser	Database user (default: postgres)
+  --dbname      Name of local database (default: tornodes)
+  --dbuser      Database user (default: postgres)
   --force       If with create, overwrite existing database with the same
                 name (default: false)
   --no-populate	Do not populate database upon creation (default: false)
-  --torify	Torify connection to exit nodes URL (default: false)
-  --remote	When combined with \"number\" or \"all\", derive
-  		info from the current public list of exit nodes
-		instead of quering the database
+  --torify      Torify connection to exit nodes URL (default: false)
+  --remote      When combined with \"number\" or \"all\", derive info from the
+                list of currently advertised Tor exit nodes instead of quering
+                the local database.
 
 Examples
   $ $(basename "$0") create
@@ -74,7 +74,7 @@ DIFF="DIFF"
 
 
 fetch_tor_exit_nodes() { 
-	$TORIFY curl -sb -I "$TOR_EXIT_NODES_URL" | sort --numeric-sort | uniq
+    $TORIFY curl -sb -I "$TOR_EXIT_NODES_URL" | sort --numeric-sort | uniq
 }
 
 check_exists() {
@@ -101,15 +101,15 @@ create_db() {
 }
 
 update_db() {
-  echo "ip" > $CSVFILE
-  fetch_tor_exit_nodes >> $CSVFILE
-  sudo -u $DBUSER psql \
-  	-c "CREATE TABLE TEMPORARY (ip varchar(45));" \
-  	-c "COPY TEMPORARY FROM '$CSVFILE' CSV HEADER;" \
-  	-c "DROP TABLE IF EXISTS "$TBNAME";" \
-  	-c "ALTER TABLE TEMPORARY RENAME TO "$TBNAME";" \
-  	$DBNAME
-  rm $CSVFILE
+    echo "ip" > $CSVFILE
+    fetch_tor_exit_nodes >> $CSVFILE
+    sudo -u $DBUSER psql \
+        -c "CREATE TABLE TEMPORARY (ip varchar(45));" \
+        -c "COPY TEMPORARY FROM '$CSVFILE' CSV HEADER;" \
+        -c "DROP TABLE IF EXISTS "$TBNAME";" \
+        -c "ALTER TABLE TEMPORARY RENAME TO "$TBNAME";" \
+        $DBNAME
+    rm $CSVFILE
 }
 
 clear_db() {
@@ -121,170 +121,170 @@ open_db() {
 }
 
 query_nr() {
-  [[ ${LOCAL} = true ]] && {
-  	sudo -u $DBUSER psql -c "SELECT COUNT(*) FROM $TBNAME;" $DBNAME \
-  		| awk 'FNR == 3 {print $1}'
-  } || {
-  	fetch_tor_exit_nodes | wc -l
-  }
+    sudo -u $DBUSER psql -c "SELECT COUNT(*) FROM $TBNAME;" $DBNAME \
+        | awk 'FNR == 3 {print $1}'
 }
 
 query_all() {
-  [[ ${LOCAL} = true ]] && {
-  	sudo -u $DBUSER psql -c "SELECT * FROM $TBNAME;" $DBNAME \
-  		| awk 'NR>2' | awk '{$1=$1};1' | head -n -2 | sort --numeric-sort
-  } || {
-  	fetch_tor_exit_nodes | sort --numeric-sort
-  }
+    sudo -u $DBUSER psql -c "SELECT * FROM $TBNAME;" $DBNAME \
+        | awk 'NR>2' | awk '{$1=$1};1' | head -n -2 | sort --numeric-sort
 }
 
 query_diff() {
-  SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
-  comm=$SCRIPT_DIR/$(basename "$0")
-  diff <($comm all --dbname ${DBNAME} | sort) <($comm all --remote | sort) \
-    --suppress-common-lines \
-    --speed-large-files \
-    --side-by-side \
-    --color
+    SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+    comm=$SCRIPT_DIR/$(basename "$0")
+    diff <($comm all --dbname ${DBNAME} | sort) <($comm all --remote | sort) \
+        --suppress-common-lines \
+        --speed-large-files \
+        --side-by-side \
+        --color
 }
 
 
 actions=()
 while [[ $# -gt 0 ]]
 do
-	arg="$1"
-	case $arg in
-		create|exists|update|clear|drop|number|all|diff|open)
-			case $arg in
-				create)
-					actions+=($CREATE)
-					;;
-				exists)
-					actions+=($EXISTS)
-					;;
-				update)
-					actions+=($UPDATE)
-					;;
-				clear)
-					actions+=($CLEAR)
-					;;
-				drop)
-					actions+=($DROP)
-					;;
-				open)
-					actions+=($OPEN)
-					;;
-				number)
-					actions+=($NUMBER)
-					;;
-				all)
-					actions+=($ALL)
-					;;
-				diff)
-					actions+=($DIFF)
-					;;
-				*)
-					:
-			esac
-			shift
-			;;
-		--url)
-			TOR_EXIT_NODES_URL="$2"
-			shift
-			shift
-			;;
-		--dbname)
-			DBNAME="$2"
-			shift
-			shift
-			;;
-		--dbuser)
-			DBUSER="$2"
-			shift
-			shift
-			;;
-    --force)
-      FORCE=true
-      shift
-      ;;
-		--no-populate)
-			POPULATE=false
-			shift
-			;;
-		--torify)
-			TORIFY="torify"
-			shift
-			;;
-		--remote)
-			LOCAL=false
-			shift
-			;;
-		-h|--help)
-			usage
-			exit 0
-			;;
-		*)
-			echo "[-] Invalid argument: $arg"
-			usage
-			exit 1
-			;;
-	esac
+    arg="$1"
+    case $arg in
+        create|exists|update|clear|drop|number|all|diff|open)
+            case $arg in
+                create)
+                    actions+=($CREATE)
+                    ;;
+                exists)
+                    actions+=($EXISTS)
+                    ;;
+                update)
+                    actions+=($UPDATE)
+                    ;;
+                clear)
+                    actions+=($CLEAR)
+                    ;;
+                drop)
+                    actions+=($DROP)
+                    ;;
+                open)
+                    actions+=($OPEN)
+                    ;;
+                number)
+                    actions+=($NUMBER)
+                    ;;
+                all)
+                    actions+=($ALL)
+                    ;;
+                diff)
+                    actions+=($DIFF)
+                    ;;
+                *)
+                    :
+            esac
+            shift
+            ;;
+        --url)
+            TOR_EXIT_NODES_URL="$2"
+            shift
+            shift
+            ;;
+        --dbname)
+            DBNAME="$2"
+            shift
+            shift
+            ;;
+        --dbuser)
+            DBUSER="$2"
+            shift
+            shift
+            ;;
+        --force)
+            FORCE=true
+            shift
+            ;;
+        --no-populate)
+            POPULATE=false
+            shift
+            ;;
+        --torify)
+            TORIFY="torify"
+            shift
+            ;;
+        --remote)
+            LOCAL=false
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "[-] Invalid argument: $arg"
+            usage
+            exit 1
+            ;;
+    esac
 done
 
 
 if [[ ${#actions[@]} -gt 1 ]]; then
-	echo "[-] Cannot specify more than one action"
-  usage
-  exit 1
+    echo "[-] Cannot specify more than one action"
+    usage
+    exit 1
 elif [[ ${#actions[@]} -eq 0 ]]; then
-	echo "[-] No action specified"
-  usage
-  exit 1
+    echo "[-] No action specified"
+    usage
+    exit 1
 fi
 
 
 ACTION=${actions[0]}
 
 case $ACTION in
-	$CREATE)
-    if [ ${FORCE} == true ]; then
+    $CREATE)
+        if [ ${FORCE} == true ]; then
+            drop_db
+        fi
+        create_db
+        ;;
+    $EXISTS)
+        if check_exists $DBNAME ; then
+            echo true && exit 0
+        else
+            echo false && exit 1
+        fi
+        ;;
+    $UPDATE)
+        update_db
+        ;;
+    $CLEAR)
+        clear_db
+        ;;
+    $DROP)
         drop_db
-    fi
-    create_db
-    ;;
-	$EXISTS)
-    if check_exists $DBNAME ; then
-        echo true && exit 0
-    else
-        echo false && exit 1
-    fi
-    ;;
-	$UPDATE)
-    update_db
-		;;
-	$CLEAR)
-    clear_db
-		;;
-	$DROP)
-    drop_db
-		;;
-	$OPEN)
-    open_db
-		;;
-	$NUMBER)
-    query_nr
-		;;
-	$ALL)
-    query_all
-		;;
-	$DIFF)
-    query_diff
-	  ;;
-	"")
-		echo "[-] No proper action specified"
-		usage
-		exit 1
-		;;
+        ;;
+    $OPEN)
+        open_db
+        ;;
+    $NUMBER)
+        if [ ${LOCAL} == true ]; then
+            query_nr
+        else
+            fetch_tor_exit_nodes | wc -l
+        fi
+        ;;
+    $ALL)
+        if [ ${LOCAL} == true ]; then
+            query_all
+        else
+            fetch_tor_exit_nodes | sort --numeric-sort
+        fi
+        ;;
+    $DIFF)
+        query_diff
+        ;;
+    "")
+        echo "[-] No proper action specified"
+        usage
+        exit 1
+        ;;
 esac
 
 exit 0
