@@ -67,6 +67,11 @@ ALL="ALL"
 DIFF="DIFF"
 
 
+fetch_tor_exit_nodes() { 
+	$TORIFY curl -sb -I "$TOR_EXIT_NODES_URL" | sort --numeric-sort | uniq
+}
+
+
 actions=()
 while [[ $# -gt 0 ]]
 do
@@ -143,83 +148,77 @@ do
 done
 
 
-fetch_tor_exit_nodes() { 
-	$TORIFY curl -sb -I "$TOR_EXIT_NODES_URL" | sort --numeric-sort | uniq
-}
-
 if [[ ${#actions[@]} -gt 1 ]]; then
-	echo "[-] Cannot specify more than one action"
-	usage
-	exit 1
+	echo "[-] Cannot specify more than one action" && usage && exit 1
 elif [[ ${#actions[@]} -eq 0 ]]; then
-	echo "[-] No action has been specified"
-	usage
-	exit 1
-else
-	ACTION=${actions[0]}
-	case $ACTION in
-		$CREATE)
-			sudo -u $DBUSER createdb "$DBNAME"
-			sudo -u $DBUSER psql -c "DROP TABLE IF EXISTS $TBNAME" $DBNAME >/dev/null 2>&1
-			sudo -u $DBUSER psql -c "CREATE TABLE $TBNAME (ip varchar(45));" $DBNAME
-			[[ ${POPULATE} = true ]] && { 
-                                echo "ip" > $CSVFILE
-			        fetch_tor_exit_nodes >> $CSVFILE
-				sudo -u $DBUSER psql -c "COPY $TBNAME FROM '$CSVFILE' CSV HEADER;" $DBNAME
-				rm $CSVFILE
-			}
-			;;
-		$UPDATE)
-                        echo "ip" > $CSVFILE
-			fetch_tor_exit_nodes >> $CSVFILE
-			sudo -u $DBUSER psql \
-				-c "CREATE TABLE TEMPORARY (ip varchar(45));" \
-				-c "COPY TEMPORARY FROM '$CSVFILE' CSV HEADER;" \
-				-c "DROP TABLE IF EXISTS "$TBNAME";" \
-				-c "ALTER TABLE TEMPORARY RENAME TO "$TBNAME";" \
-				$DBNAME
-			rm $CSVFILE
-			;;
-		$CLEAR)
-			sudo -u $DBUSER psql -c "DELETE FROM $TBNAME;" $DBNAME
-			;;
-		$DROP)
-			sudo -u $DBUSER dropdb "$DBNAME" --if-exists
-			;;
-		$OPEN)
-			sudo -u $DBUSER psql "$DBNAME"
-			;;
-		$NUMBER)
-			[[ ${LOCAL} = true ]] && {
-				sudo -u $DBUSER psql -c "SELECT COUNT(*) FROM $TBNAME;" $DBNAME \
-					| awk 'FNR == 3 {print $1}'
-			} || {
-				fetch_tor_exit_nodes | wc -l
-			}
-			;;
-		$ALL)
-			[[ ${LOCAL} = true ]] && {
-				sudo -u $DBUSER psql -c "SELECT * FROM $TBNAME;" $DBNAME \
-					| awk 'NR>2' | awk '{$1=$1};1' | head -n -2 | sort --numeric-sort
-			} || {
-				fetch_tor_exit_nodes | sort --numeric-sort
-			}
-			;;
-		$DIFF)
-                        SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
-                        comm=$SCRIPT_DIR/$(basename "$0")
-                        diff <($comm all | sort) <($comm all --remote | sort) \
-                                --suppress-common-lines \
-                                --speed-large-files \
-                                --side-by-side \
-                                --color
-			;;
-		"")
-			echo "[-] No proper action has been specified"
-			usage
-			exit 1
-			;;
-	esac
+	echo "[-] No action has been specified" && usage && exit 1
 fi
 
 
+ACTION=${actions[0]}
+
+case $ACTION in
+	$CREATE)
+		sudo -u $DBUSER createdb "$DBNAME"
+		sudo -u $DBUSER psql -c "DROP TABLE IF EXISTS $TBNAME" $DBNAME >/dev/null 2>&1
+		sudo -u $DBUSER psql -c "CREATE TABLE $TBNAME (ip varchar(45));" $DBNAME
+		[[ ${POPULATE} = true ]] && { 
+                              echo "ip" > $CSVFILE
+		        fetch_tor_exit_nodes >> $CSVFILE
+			sudo -u $DBUSER psql -c "COPY $TBNAME FROM '$CSVFILE' CSV HEADER;" $DBNAME
+			rm $CSVFILE
+		}
+		;;
+	$UPDATE)
+                      echo "ip" > $CSVFILE
+		fetch_tor_exit_nodes >> $CSVFILE
+		sudo -u $DBUSER psql \
+			-c "CREATE TABLE TEMPORARY (ip varchar(45));" \
+			-c "COPY TEMPORARY FROM '$CSVFILE' CSV HEADER;" \
+			-c "DROP TABLE IF EXISTS "$TBNAME";" \
+			-c "ALTER TABLE TEMPORARY RENAME TO "$TBNAME";" \
+			$DBNAME
+		rm $CSVFILE
+		;;
+	$CLEAR)
+		sudo -u $DBUSER psql -c "DELETE FROM $TBNAME;" $DBNAME
+		;;
+	$DROP)
+		sudo -u $DBUSER dropdb "$DBNAME" --if-exists
+		;;
+	$OPEN)
+		sudo -u $DBUSER psql "$DBNAME"
+		;;
+	$NUMBER)
+		[[ ${LOCAL} = true ]] && {
+			sudo -u $DBUSER psql -c "SELECT COUNT(*) FROM $TBNAME;" $DBNAME \
+				| awk 'FNR == 3 {print $1}'
+		} || {
+			fetch_tor_exit_nodes | wc -l
+		}
+		;;
+	$ALL)
+		[[ ${LOCAL} = true ]] && {
+			sudo -u $DBUSER psql -c "SELECT * FROM $TBNAME;" $DBNAME \
+				| awk 'NR>2' | awk '{$1=$1};1' | head -n -2 | sort --numeric-sort
+		} || {
+			fetch_tor_exit_nodes | sort --numeric-sort
+		}
+		;;
+	$DIFF)
+                      SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+                      comm=$SCRIPT_DIR/$(basename "$0")
+                      diff <($comm all | sort) <($comm all --remote | sort) \
+                              --suppress-common-lines \
+                              --speed-large-files \
+                              --side-by-side \
+                              --color
+		;;
+	"")
+		echo "[-] No proper action has been specified"
+		usage
+		exit 1
+		;;
+esac
+
+exit 0
