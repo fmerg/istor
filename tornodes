@@ -112,6 +112,10 @@ update_db() {
   rm $CSVFILE
 }
 
+clear_db() {
+    sudo -u $DBUSER psql -c "DELETE FROM $TBNAME;" $DBNAME
+}
+
 open_db() {
     sudo -u $DBUSER psql "$DBNAME"
 }
@@ -249,7 +253,7 @@ case $ACTION in
     update_db
 		;;
 	$CLEAR)
-		sudo -u $DBUSER psql -c "DELETE FROM $TBNAME;" $DBNAME
+    clear_db
 		;;
 	$DROP)
     drop_db
