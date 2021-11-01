@@ -100,6 +100,18 @@ create_db() {
     }
 }
 
+update_db() {
+  echo "ip" > $CSVFILE
+  fetch_tor_exit_nodes >> $CSVFILE
+  sudo -u $DBUSER psql \
+  	-c "CREATE TABLE TEMPORARY (ip varchar(45));" \
+  	-c "COPY TEMPORARY FROM '$CSVFILE' CSV HEADER;" \
+  	-c "DROP TABLE IF EXISTS "$TBNAME";" \
+  	-c "ALTER TABLE TEMPORARY RENAME TO "$TBNAME";" \
+  	$DBNAME
+  rm $CSVFILE
+}
+
 
 actions=()
 while [[ $# -gt 0 ]]
@@ -212,15 +224,7 @@ case $ACTION in
     fi
     ;;
 	$UPDATE)
-                      echo "ip" > $CSVFILE
-		fetch_tor_exit_nodes >> $CSVFILE
-		sudo -u $DBUSER psql \
-			-c "CREATE TABLE TEMPORARY (ip varchar(45));" \
-			-c "COPY TEMPORARY FROM '$CSVFILE' CSV HEADER;" \
-			-c "DROP TABLE IF EXISTS "$TBNAME";" \
-			-c "ALTER TABLE TEMPORARY RENAME TO "$TBNAME";" \
-			$DBNAME
-		rm $CSVFILE
+    update_db
 		;;
 	$CLEAR)
 		sudo -u $DBUSER psql -c "DELETE FROM $TBNAME;" $DBNAME
