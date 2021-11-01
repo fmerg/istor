@@ -36,7 +36,7 @@ DBUSER=postgres
 TBNAME=exit_nodes
 IP=
 
-positional=()
+pos=()
 while [[ $# -gt 0 ]]
 do
     arg="$1"
@@ -57,37 +57,43 @@ do
             ;;
         *)
             IP="$1"
-            positional+=($IP)
+            pos+=($IP)
             shift
             ;;
     esac
 done
 
 
-[[ ${#positional[@]} -eq 1 ]] && {
+if [ ${#pos[@]} == 1 ]; then
 
     resp=$(sudo -u $DBUSER psql -c "SELECT EXISTS (SELECT * FROM $TBNAME WHERE ip='"$IP"');" $DBNAME)
-    
-    [[ $? -eq 0 ]] && {
-    
-        [[ $(echo "$resp" | awk 'FNR == 3 {print $1}') == "f" ]] && { 
+
+    if [ $? == 0 ]; then
+
+        if [ $(echo "$resp" | awk 'FNR == 3 {print $1}') == "f" ]; then
             echo false
             exit 1
-        } || {
+        else
             echo true
             exit 0
-        }
-    } || {
+        fi
+
+    else
         echo
         echo "Something was wrong with the database query ^^"
         exit 3
-    }
-} || {
-    [[ ${#positional[@]} -eq 0 ]] && { 
-        echo "[-] No IP provided"
-    } || {
-        echo "[-] Cannot provide more than one IPs"
-    }
-    usage
-    exit 2
-}
+    fi
+
+elif [ ${#pos[@]} == 0 ]; then
+
+    echo "[-] No IP provided"
+    usage && exit 2
+
+else
+
+    echo "[-] Cannot provide more than one IPs"
+    usage && exit 2
+
+fi
+
+exit 0
