@@ -30,6 +30,8 @@ Options
                 https://check.torproject.org/torbulkexitlist
   --dbname	Name of local database (default: tornodes)
   --dbuser	Database user (default: postgres)
+  --force       If with create, overwrite existing database with the same
+                name (default: false)
   --no-populate	Do not populate database upon creation (default: false)
   --torify	Torify connection to exit nodes URL (default: false)
   --remote	When combined with \"number\" or \"all\", derive
@@ -58,6 +60,7 @@ DBUSER=postgres
 POPULATE=true
 TORIFY=
 LOCAL=true
+FORCE=false
 
 CREATE="CREATE"
 EXISTS="EXISTS"
@@ -76,6 +79,25 @@ fetch_tor_exit_nodes() {
 
 check_exists() {
     sudo -u $DBUSER psql --list | grep -q "$1"
+}
+
+drop_db() {
+    if check_exists "$DBNAME" ; then
+        sudo -u $DBUSER psql -c "DROP TABLE IF EXISTS $TBNAME" $DBNAME >/dev/null 2>&1
+    fi
+    sudo -u $DBUSER dropdb "$DBNAME" --if-exists
+}
+
+create_db() {
+    sudo -u $DBUSER createdb "$DBNAME"
+    sudo -u $DBUSER psql -c "DROP TABLE IF EXISTS $TBNAME" $DBNAME >/dev/null 2>&1
+    sudo -u $DBUSER psql -c "CREATE TABLE $TBNAME (ip varchar(45));" $DBNAME
+    [[ ${POPULATE} = true ]] && { 
+        echo "ip" > $CSVFILE
+        fetch_tor_exit_nodes >> $CSVFILE
+        sudo -u $DBUSER psql -c "COPY $TBNAME FROM '$CSVFILE' CSV HEADER;" $DBNAME
+        rm $CSVFILE
+    }
 }
 
 
@@ -133,6 +155,10 @@ do
 			shift
 			shift
 			;;
+    --force)
+      FORCE=true
+      shift
+      ;;
 		--no-populate)
 			POPULATE=false
 			shift
@@ -159,9 +185,13 @@ done
 
 
 if [[ ${#actions[@]} -gt 1 ]]; then
-	echo "[-] Cannot specify more than one action" && usage && exit 1
+	echo "[-] Cannot specify more than one action"
+  usage
+  exit 1
 elif [[ ${#actions[@]} -eq 0 ]]; then
-	echo "[-] No action has been specified" && usage && exit 1
+	echo "[-] No action has been specified"
+  usage
+  exit 1
 fi
 
 
@@ -169,16 +199,11 @@ ACTION=${actions[0]}
 
 case $ACTION in
 	$CREATE)
-		sudo -u $DBUSER createdb "$DBNAME"
-		sudo -u $DBUSER psql -c "DROP TABLE IF EXISTS $TBNAME" $DBNAME >/dev/null 2>&1
-		sudo -u $DBUSER psql -c "CREATE TABLE $TBNAME (ip varchar(45));" $DBNAME
-		[[ ${POPULATE} = true ]] && { 
-                              echo "ip" > $CSVFILE
-		        fetch_tor_exit_nodes >> $CSVFILE
-			sudo -u $DBUSER psql -c "COPY $TBNAME FROM '$CSVFILE' CSV HEADER;" $DBNAME
-			rm $CSVFILE
-		}
-		;;
+    if [ ${FORCE} == true ]; then
+        drop_db
+    fi
+    create_db
+    ;;
 	$EXISTS)
     if check_exists $DBNAME ; then
         echo true && exit 0
@@ -201,7 +226,7 @@ case $ACTION in
 		sudo -u $DBUSER psql -c "DELETE FROM $TBNAME;" $DBNAME
 		;;
 	$DROP)
-		sudo -u $DBUSER dropdb "$DBNAME" --if-exists
+    drop_db
 		;;
 	$OPEN)
 		sudo -u $DBUSER psql "$DBNAME"
@@ -223,14 +248,14 @@ case $ACTION in
 		}
 		;;
 	$DIFF)
-                      SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
-                      comm=$SCRIPT_DIR/$(basename "$0")
-                      diff <($comm all | sort) <($comm all --remote | sort) \
-                              --suppress-common-lines \
-                              --speed-large-files \
-                              --side-by-side \
-                              --color
-		;;
+    SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+    comm=$SCRIPT_DIR/$(basename "$0")
+    diff <($comm all --dbname ${DBNAME} | sort) <($comm all --remote | sort) \
+      --suppress-common-lines \
+      --speed-large-files \
+      --side-by-side \
+      --color
+	  ;;
 	"")
 		echo "[-] No proper action has been specified"
 		usage
