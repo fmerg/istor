@@ -54,7 +54,7 @@ TBNAME=exit_nodes
 DBNAME=tornodes
 DBUSER=postgres
 POPULATE=true
-TORIFY=""
+TORIFY=
 LOCAL=true
 
 CREATE="CREATE"
@@ -62,9 +62,9 @@ UPDATE="UPDATE"
 CLEAR="CLEAR"
 DROP="DROP"
 OPEN="OPEN"
-QUERY_NR="QUERY_NR"
-QUERY_ALL="QUERY_ALL"
-QUERY_DIFF="QUERY_DIFF"
+NUMBER="NUMBER"
+ALL="ALL"
+DIFF="DIFF"
 
 
 actions=()
@@ -90,13 +90,13 @@ do
 					actions+=($OPEN)
 					;;
 				number)
-					actions+=($QUERY_NR)
+					actions+=($NUMBER)
 					;;
 				all)
-					actions+=($QUERY_ALL)
+					actions+=($ALL)
 					;;
 				diff)
-					actions+=($QUERY_DIFF)
+					actions+=($DIFF)
 					;;
 				*)
 					:
@@ -189,7 +189,7 @@ else
 		$OPEN)
 			sudo -u $DBUSER psql "$DBNAME"
 			;;
-		$QUERY_NR)
+		$NUMBER)
 			[[ ${LOCAL} = true ]] && {
 				sudo -u $DBUSER psql -c "SELECT COUNT(*) FROM $TBNAME;" $DBNAME \
 					| awk 'FNR == 3 {print $1}'
@@ -197,7 +197,7 @@ else
 				fetch_tor_exit_nodes | wc -l
 			}
 			;;
-		$QUERY_ALL)
+		$ALL)
 			[[ ${LOCAL} = true ]] && {
 				sudo -u $DBUSER psql -c "SELECT * FROM $TBNAME;" $DBNAME \
 					| awk 'NR>2' | awk '{$1=$1};1' | head -n -2 | sort --numeric-sort
@@ -205,7 +205,7 @@ else
 				fetch_tor_exit_nodes | sort --numeric-sort
 			}
 			;;
-		$QUERY_DIFF)
+		$DIFF)
                         SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
                         comm=$SCRIPT_DIR/$(basename "$0")
                         diff <($comm all | sort) <($comm all --remote | sort) \
