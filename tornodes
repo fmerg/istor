@@ -138,6 +138,16 @@ query_all() {
   }
 }
 
+query_diff() {
+  SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+  comm=$SCRIPT_DIR/$(basename "$0")
+  diff <($comm all --dbname ${DBNAME} | sort) <($comm all --remote | sort) \
+    --suppress-common-lines \
+    --speed-large-files \
+    --side-by-side \
+    --color
+}
+
 
 actions=()
 while [[ $# -gt 0 ]]
@@ -227,7 +237,7 @@ if [[ ${#actions[@]} -gt 1 ]]; then
   usage
   exit 1
 elif [[ ${#actions[@]} -eq 0 ]]; then
-	echo "[-] No action has been specified"
+	echo "[-] No action specified"
   usage
   exit 1
 fi
@@ -268,16 +278,10 @@ case $ACTION in
     query_all
 		;;
 	$DIFF)
-    SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
-    comm=$SCRIPT_DIR/$(basename "$0")
-    diff <($comm all --dbname ${DBNAME} | sort) <($comm all --remote | sort) \
-      --suppress-common-lines \
-      --speed-large-files \
-      --side-by-side \
-      --color
+    query_diff
 	  ;;
 	"")
-		echo "[-] No proper action has been specified"
+		echo "[-] No proper action specified"
 		usage
 		exit 1
 		;;
