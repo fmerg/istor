@@ -112,6 +112,10 @@ update_db() {
   rm $CSVFILE
 }
 
+open_db() {
+    sudo -u $DBUSER psql "$DBNAME"
+}
+
 query_nr() {
   [[ ${LOCAL} = true ]] && {
   	sudo -u $DBUSER psql -c "SELECT COUNT(*) FROM $TBNAME;" $DBNAME \
@@ -251,7 +255,7 @@ case $ACTION in
     drop_db
 		;;
 	$OPEN)
-		sudo -u $DBUSER psql "$DBNAME"
+    open_db
 		;;
 	$NUMBER)
     query_nr
