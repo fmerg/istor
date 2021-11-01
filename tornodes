@@ -58,7 +58,7 @@ TBNAME=exit_nodes
 DBNAME=tornodes
 DBUSER=postgres
 POPULATE=true
-TORIFY=
+TORIFY=torify
 LOCAL=true
 FORCE=false
 
