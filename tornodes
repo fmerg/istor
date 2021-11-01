@@ -121,6 +121,15 @@ query_nr() {
   }
 }
 
+query_all() {
+  [[ ${LOCAL} = true ]] && {
+  	sudo -u $DBUSER psql -c "SELECT * FROM $TBNAME;" $DBNAME \
+  		| awk 'NR>2' | awk '{$1=$1};1' | head -n -2 | sort --numeric-sort
+  } || {
+  	fetch_tor_exit_nodes | sort --numeric-sort
+  }
+}
+
 
 actions=()
 while [[ $# -gt 0 ]]
@@ -248,12 +257,7 @@ case $ACTION in
     query_nr
 		;;
 	$ALL)
-		[[ ${LOCAL} = true ]] && {
-			sudo -u $DBUSER psql -c "SELECT * FROM $TBNAME;" $DBNAME \
-				| awk 'NR>2' | awk '{$1=$1};1' | head -n -2 | sort --numeric-sort
-		} || {
-			fetch_tor_exit_nodes | sort --numeric-sort
-		}
+    query_all
 		;;
 	$DIFF)
     SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
